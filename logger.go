@@ -48,7 +48,7 @@ func (m Mylogger) genericExitSequence(e error) {
 }
 
 // StartLogging starts the logging process.
-func (m Mylogger) StartLogging(l *log.Logger) {
+func (m *Mylogger) StartLogging(l *log.Logger) {
 	CRITCH := make(ch, chBufSize)
 	ERRCH := make(ch, chBufSize)
 	WARNCH := make(ch, chBufSize)
