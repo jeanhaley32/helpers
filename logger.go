@@ -14,6 +14,7 @@ type ch chan any
 
 var (
 	CRITCH, ERRCH, WARNCH, INFOCH, DEBUGCH ch
+	chBufSize                              = 100
 )
 
 // LogChan is a type that represents a channel that can be used to send logs
@@ -26,46 +27,6 @@ type channels struct {
 	warn  ch
 	info  ch
 	debug ch
-}
-
-const (
-	CRITICAL LogChan = iota
-	ERROR
-	WARNING
-	INFO
-	DEBUG
-)
-
-func (l LogChan) String() string {
-	switch l {
-	case CRITICAL:
-		return colorWrap(PURPLE, "CRITICAL")
-	case ERROR:
-		return colorWrap(RED, "ERROR")
-	case WARNING:
-		return colorWrap(YELLOW, "WARNING")
-	case INFO:
-		return colorWrap(GRAY, "INFO")
-	case DEBUG:
-		return colorWrap(BLUE, "DEBUG")
-	}
-	return ""
-}
-
-func (l LogChan) GetChannel() ch {
-	switch l {
-	case CRITICAL:
-		return CRITCH
-	case ERROR:
-		return ERRCH
-	case WARNING:
-		return WARNCH
-	case INFO:
-		return INFOCH
-	case DEBUG:
-		return DEBUGCH
-	}
-	return nil
 }
 
 // Mylogger defines a logger that can be used to log messages to the console.
@@ -88,11 +49,11 @@ func (m Mylogger) genericExitSequence(e error) {
 
 // StartLogging starts the logging process.
 func (m Mylogger) StartLogging(l *log.Logger) {
-	CRITCH := make(ch)
-	ERRCH := make(ch)
-	WARNCH := make(ch)
-	INFOCH := make(ch)
-	DEBUGCH := make(ch)
+	CRITCH := make(ch, chBufSize)
+	ERRCH := make(ch, chBufSize)
+	WARNCH := make(ch, chBufSize)
+	INFOCH := make(ch, chBufSize)
+	DEBUGCH := make(ch, chBufSize)
 	m.chans = channels{
 		crit:  CRITCH,
 		err:   ERRCH,
@@ -131,11 +92,11 @@ func (m Mylogger) StartLogging(l *log.Logger) {
 
 // Ensure that the passed value is an error, and return it as an error.
 func convertToError(a any) error {
-	switch a.(type) {
+	switch t := a.(type) {
 	case error:
-		return a.(error)
+		return t
 	case string:
-		return errors.New(a.(string))
+		return errors.New(t)
 	default:
 		return nil
 	}
