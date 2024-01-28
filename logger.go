@@ -108,28 +108,28 @@ func (m Mylogger) StartTime() time.Time {
 }
 
 // Critical logs a critical error and exits the program.
-func (s *Mylogger) Critical(e error) {
-	s.chans.crit <- e
+func (s *Mylogger) Critical(a any) {
+	s.chans.crit <- a
 }
 
 // Error logs an error.
-func (s *Mylogger) Error(e error) {
-	s.chans.err <- e
+func (s *Mylogger) Error(a any) {
+	s.chans.err <- a
 }
 
 // Debug logs a debug message.
-func (s *Mylogger) Debug(e error) {
-	s.chans.debug <- e
+func (s *Mylogger) Debug(a any) {
+	s.chans.debug <- a
 }
 
 // Warning logs a warning message.
-func (s *Mylogger) Warning(e error) {
-	s.chans.warn <- e
+func (s *Mylogger) Warning(a any) {
+	s.chans.warn <- a
 }
 
 // Info logs an info message.
-func (s *Mylogger) Info(e error) {
-	s.chans.info <- e
+func (s *Mylogger) Info(a any) {
+	s.chans.info <- a
 }
 
 // interruptlog is a goroutine that will listen for SIGINT and SIGTERM signals,
