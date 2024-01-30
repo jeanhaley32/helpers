@@ -10,7 +10,8 @@ This version is intended to create pathways to log to console messages of differ
 `INFO,` `DEBUG,` `ERROR,` `WARNING,` `INTERRUPT SIGNAL`, and `CRITICAL.`
 
 Message logged with severities print out as time-stamped, and color-coded messages to console. 
-Critical and signal interrupt messages are both called a generic exit sequence. 
+Critical and signal interrupt messages call a "generic exit sequence" that prints the amount of time
+the service has run for and exits the application. 
 
 ## How to use
 The below example starts a logger with a generic log.Default() base logger interface.
