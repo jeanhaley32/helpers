@@ -34,8 +34,6 @@ func (c Color) Color() string {
 	return ""
 }
 
-type timestamp string
-
 // colorWrap wraps a string in a color
 func colorWrap(c Color, m string) string {
 	const Reset = "\033[0m"
