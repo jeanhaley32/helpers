@@ -1,8 +1,8 @@
 package logger
 
-// A logger used to log handle errors of different severities.
 import (
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -38,11 +38,12 @@ type Mylogger struct {
 func (m Mylogger) genericExitSequence(e error) {
 	returnCode := 0
 	if e != nil {
-		log.Default().Printf("Error: %v", e)
+		log.Default().Printf("%v", e)
 		returnCode = 1
 	}
 	m.baseLogger.Println("Server stopped")
 	m.baseLogger.Printf("Server ran for %s", time.Since(m.StartTime()))
+	fmt.Println("Exiting...")
 	os.Exit(returnCode)
 }
 
