@@ -33,3 +33,16 @@ There are still more concepts I need to learn when setting up logging this way, 
 
 There's also a decent chance I'm re-inventing the wheel with a lot of this, but I find a lot of personal value in recreating things that
 possibly already exist, at least for my own personal projects.
+
+> The design for this may also be flawed in some conceptual ways.
+> 1. Creating multiple separate channels for different error severities was a fun idea. Still, in practice, this kind of non-linear approach disadvantages situations where Time series sequencing is key, and that is usually the case with logs.
+> 2.  A solution may be to pass the generated message to a queue, where every message is sorted by time and printed off one at a time. The generic exit sequence can close all receiving channels, and wait for the message queue to be printed.
+>  3. If I can program all go routines to listen on an exit channel and program them to die when that channel is closed, we can gently shut down the application and clear the queue.
+> 4. Once the queue is cleared, we can then shut down the logger and fully exit the application.
+
+> This above idea makes me think of a few other implementations. If we take in logs like this and feed them into a sorted view, we can then
+> Cut out a slice of that sort view and show that to the user as a "page."
+> If we save our logs to a file, and use rolling appenders, we can provide the user with a final paginated display. This may be a better
+> idea for a separate project for viewing logs within the terminal.
+>
+> There's still plenty of room for improvement with this project. I'm going to leave it as is for now, and add some utilitarian functionality as I need it.
