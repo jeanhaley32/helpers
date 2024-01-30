@@ -2,7 +2,7 @@
 A Custom project agnostic logger, intended for use with most of my projects. 
 
 ## Why?
-This is a two-day effort to combine some of the common logging functionality I've implemented in previous project. 
+This is a two-day effort to combine some of the common logging functionality I've implemented in previous projects. 
 I "Bit the bullet" and combined them into a single package. 
 
 ## Objective
