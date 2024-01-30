@@ -17,9 +17,14 @@ the service has run for and exits the application.
 The below example starts a logger with a generic log.Default() base logger interface.
 
 ```golang
+ // Create Logger, passing in log.Default() as the base logger satisfying the log.Logger interface.
  l := logger.StartLogger(log.Default())
+
+ // Example function that returns an error
  _, err := foo()
  if err != nil {
+ // Choose the severity of this error, if it's just a warning, this will print a warning message.
+ // critical will close the application.
   l.Warning(err)
  }
 ```
