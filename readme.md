@@ -18,7 +18,7 @@ The below example starts a logger with a generic log.Default() base logger inter
 
 ```golang
  l := logger.StartLogger(log.Default())
- _, err := foo(){}
+ _, err := foo()
  if err != nil {
   l.Warning(err)
  }
