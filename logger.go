@@ -20,26 +20,29 @@ const (
 	ERROR
 	WARNING
 	INFO
+	INTSIGNAL
 )
 
 var (
-	crit, err, warn, info, debug ch // various channels used to receive logs.
+	crit, err, warn, info, debug, sigs ch // various channels used to receive logs.
 )
 
 func (e errorType) String() string {
 	switch e {
 	case DEBUG:
-		return "DEBUG"
+		return "Debug"
 	case CRITICAL:
-		return "CRITICAL"
+		return "Critical"
 	case ERROR:
-		return "ERROR"
+		return "Error"
 	case WARNING:
-		return "WARNING"
+		return "Warning"
 	case INFO:
-		return "INFO"
+		return "Info"
+	case INTSIGNAL:
+		return "Interrupt Signal"
 	}
-	return "UNKNOWN"
+	return "Unknown Error Type"
 }
 
 func (e errorType) Color() Color {
@@ -86,15 +89,18 @@ func (e errorType) channel() ch {
 		return warn
 	case INFO:
 		return info
+	case INTSIGNAL:
+		return sigs
 	}
 	return info
 }
 
 var (
+	// buffer size for channels
 	chBufSize = 100
 )
 
-// various channels used to receive logs.
+// Struct defining the various channels used to log messages.
 type channels struct {
 	crit     ch
 	err      ch
@@ -233,29 +239,24 @@ func mediateChannels(m *Mylogger) {
 	for {
 		select {
 		case e := <-m.chans.crit:
-			t := colorWrap(PURPLE, "CRITICAL")
 			err := convertToError(e)
-			msg := errors.New(t + " " + err.Error())
+			msg := errors.New(CRITICAL.prefix() + " " + err.Error())
 			m.genericshutdownSequence(msg)
 		case e := <-m.chans.err:
-			t := colorWrap(RED, "ERROR")
 			err := convertToError(e)
-			msg := errors.New(t + " " + err.Error())
+			msg := errors.New(ERROR.prefix() + " " + err.Error())
 			m.baseLogger.Println(msg.Error())
 		case e := <-m.chans.warn:
-			t := colorWrap(YELLOW, "WARNING")
 			err := convertToError(e)
-			msg := errors.New(t + " " + err.Error())
+			msg := errors.New(WARNING.prefix() + " " + err.Error())
 			m.baseLogger.Println(msg.Error())
 		case e := <-m.chans.info:
-			t := colorWrap(WHITE, "INFO")
 			err := convertToError(e)
-			msg := errors.New(t + " " + err.Error())
+			msg := errors.New(INFO.prefix() + " " + err.Error())
 			m.baseLogger.Printf(msg.Error())
 		case e := <-m.chans.debug:
-			t := colorWrap(BLUE, "DEBUG")
 			err := convertToError(e)
-			msg := errors.New(t + " " + err.Error())
+			msg := errors.New(DEBUG.prefix() + " " + err.Error())
 			m.baseLogger.Printf(msg.Error())
 		case <-m.chans.shutdown:
 			m.genericshutdownSequence(nil)
