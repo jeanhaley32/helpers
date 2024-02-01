@@ -18,14 +18,14 @@ var (
 
 // various channels used to receive logs.
 type channels struct {
-	crit  ch
-	err   ch
-	warn  ch
-	info  ch
-	debug ch
-	SIGS  chan os.Signal
-	shutdown  chan interface{}
-	quit chan interface{}
+	crit     ch
+	err      ch
+	warn     ch
+	info     ch
+	debug    ch
+	SIGS     chan os.Signal
+	shutdown chan interface{}
+	quit     chan interface{}
 }
 
 // Struct defining a Custom Logger
@@ -60,6 +60,7 @@ func StartLogger(logger *log.Logger) *Mylogger {
 	WARNCH := make(ch, chBufSize)
 	INFOCH := make(ch, chBufSize)
 	DEBUGCH := make(ch, chBufSize)
+	QUIT := make(chan any)
 	SIGS := make(chan os.Signal, 1)
 	SHUTDOWN := make(chan interface{}, 1)
 	signal.Notify(SIGS, syscall.SIGINT, syscall.SIGTERM)
@@ -67,13 +68,14 @@ func StartLogger(logger *log.Logger) *Mylogger {
 		baseLogger: logger,
 	}
 	l.chans = channels{
-		crit:  CRITCH,
-		err:   ERRCH,
-		warn:  WARNCH,
-		info:  INFOCH,
-		debug: DEBUGCH,
-		shutdown:  SHUTDOWN,
-		SIGS:  SIGS,
+		crit:     CRITCH,
+		err:      ERRCH,
+		warn:     WARNCH,
+		info:     INFOCH,
+		debug:    DEBUGCH,
+		shutdown: SHUTDOWN,
+		SIGS:     SIGS,
+		quit:     QUIT,
 	}
 	go func() {
 		mediateChannels(&l)
@@ -112,10 +114,9 @@ func mediateChannels(m *Mylogger) {
 			msg := errors.New(t + " " + convertToError(s.String()).Error())
 			m.baseLogger.Println(msg.Error())
 			m.genericshutdownSequence(nil)
-		case s := <-m.chan.quit:
-			return
+		case <-m.chans.quit:
+			break
 		}
-		case <-m.
 	}
 }
 
@@ -166,7 +167,7 @@ func (s *Mylogger) Info(a any) {
 	s.chans.info <- a
 }
 
-// shutsdown logger routine. This is not a graceful exit. 
-func (s *Mylogger) Quit(a any){
-	s.chan.quit <- a
+// shutsdown logger routine. This is not a graceful exit.
+func (s *Mylogger) Quit(a any) {
+	s.chans.quit <- a
 }
