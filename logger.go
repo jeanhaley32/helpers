@@ -156,8 +156,6 @@ func (l Mylogger) genericshutdownSequence(e error) {
 
 	// Close shutdown channel first. This should be used to signal the end of the server.
 	close(l.chans.shutdown)
-	// wait for wg to be cleared.
-	l.wg.Wait()
 
 	// drain and close all channels.
 	drain(CRITICAL)
@@ -165,11 +163,13 @@ func (l Mylogger) genericshutdownSequence(e error) {
 	drain(WARNING)
 	drain(INFO)
 	drain(DEBUG)
-
 	// close all channels
 	l.closeLogs()
+	l.baseLogger.Println("All log channels drained and closed successfully")
 
-	l.baseLogger.Println("All log channels closed")
+	// wait for wg to be cleared.
+	l.wg.Wait()
+	l.baseLogger.Println("All goroutines have been cleared")
 	l.baseLogger.Println("Server stopped")
 	l.baseLogger.Printf("Server ran for %s", time.Since(l.StartTime()))
 	l.baseLogger.Printf("Shutting Down...")
