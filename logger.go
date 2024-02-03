@@ -2,6 +2,7 @@ package logger
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -24,41 +25,47 @@ const (
 )
 
 var (
-	crit, err, warn, info, debug, sigs ch // various channels used to receive logs.
+	crit, err, warn, info, debug, sigs          ch          // various channels used to receive logs.
+	critlog, errlog, warnlog, infolog, debuglog *log.Logger // various loggers used to log messages.
+	debugColor                                  = BLUE
+	critColor                                   = PURPLE
+	errColor                                    = RED
+	warnColor                                   = YELLOW
+	baseColor                                   = WHITE
 )
 
 func (e errorType) String() string {
 	switch e {
 	case DEBUG:
-		return "Debug"
+		return colorWrap(e.Color(), "DEBUG")
 	case CRITICAL:
-		return "Critical"
+		return colorWrap(e.Color(), "CRITICAL")
 	case ERROR:
-		return "Error"
+		return colorWrap(e.Color(), "ERROR")
 	case WARNING:
-		return "Warning"
+		return colorWrap(e.Color(), "WARNING")
 	case INFO:
-		return "Info"
+		return colorWrap(e.Color(), "INFO")
 	case INTSIGNAL:
-		return "Interrupt Signal"
+		return colorWrap(e.Color(), "INTSIGNAL")
 	}
-	return "Unknown Error Type"
+	return colorWrap(e.Color(), "UNKNOWN")
 }
 
 func (e errorType) Color() Color {
 	switch e {
 	case DEBUG:
-		return BLUE
+		return debugColor
 	case CRITICAL:
-		return PURPLE
+		return critColor
 	case ERROR:
-		return RED
+		return errColor
 	case WARNING:
-		return YELLOW
+		return warnColor
 	case INFO:
-		return WHITE
+		return baseColor
 	}
-	return WHITE
+	return baseColor
 }
 
 func (e errorType) prefix() string {
@@ -114,10 +121,14 @@ type channels struct {
 
 // Struct defining a Custom Logger
 type Mylogger struct {
-	start      time.Time
-	chans      channels
-	wg         *sync.WaitGroup
-	baseLogger *log.Logger
+	start    time.Time
+	chans    channels
+	wg       *sync.WaitGroup
+	warnlog  *log.Logger
+	errlog   *log.Logger
+	critlog  *log.Logger
+	debuglog *log.Logger
+	infolog  *log.Logger
 }
 
 // Close all log channels
@@ -137,25 +148,14 @@ func (l Mylogger) genericshutdownSequence(e error) {
 		for m := range e.channel() {
 			switch e {
 			case CRITICAL:
-				err := convertToError(m)
-				msg := errors.New(CRITICAL.prefix() + " " + err.Error())
-				l.baseLogger.Printf(msg.Error())
+				l.critlog.Println(cioe(m).Error())
 			case ERROR:
-				err := convertToError(m)
-				msg := errors.New(ERROR.prefix() + " " + err.Error())
-				l.baseLogger.Printf(msg.Error())
+				l.errlog.Println(cioe(m).Error())
 			case WARNING:
-				err := convertToError(m)
-				msg := errors.New(WARNING.prefix() + " " + err.Error())
-				l.baseLogger.Printf(msg.Error())
+				l.warnlog.Println(cioe(m).Error())
 			case INFO:
-				err := convertToError(m)
-				msg := errors.New(INFO.prefix() + " " + err.Error())
-				l.baseLogger.Printf(msg.Error())
+				l.infolog.Println(cioe(m).Error())
 			case DEBUG:
-				err := convertToError(m)
-				msg := errors.New(DEBUG.prefix() + " " + err.Error())
-				l.baseLogger.Printf(msg.Error())
 			}
 		}
 	}
@@ -171,18 +171,17 @@ func (l Mylogger) genericshutdownSequence(e error) {
 	drain(DEBUG)
 	// close all channels
 	l.closeLogs()
-	l.baseLogger.Println("All log channels drained and closed successfully")
+	l.infolog.Println("All log channels drained and closed successfully")
 
 	// wait for wg to be cleared.
 	l.wg.Wait()
-	l.baseLogger.Println("All goroutines have been cleared")
-	l.baseLogger.Println("Server stopped")
-	l.baseLogger.Printf("Server ran for %s", time.Since(l.StartTime()))
-	l.baseLogger.Printf("Shutting Down...")
+	l.infolog.Println("All tracked Routines stopped successfully")
+	l.infolog.Printf("Server ran for %s", time.Since(l.StartTime()))
 	if e != nil {
-		l.baseLogger.Println("Server exited with error: ", e.Error())
+		l.warnlog.Println("Server exited with error: ", e.Error())
 		os.Exit(1)
 	}
+	l.infolog.Printf("Shutting Down...")
 	os.Exit(0)
 }
 
@@ -192,7 +191,13 @@ func (l Mylogger) genericshutdownSequence(e error) {
 // l := StartLogger(log.Default())
 // l.Debug("Debug message")
 // l.Error("Error message")...
-func StartLogger(logger *log.Logger) *Mylogger {
+func StartLogger() *Mylogger {
+	warnlog := log.New(os.Stderr, fmt.Sprintf("%v", WARNING), log.Ldate|log.Ltime|log.Lshortfile)
+	errlog := log.New(os.Stderr, fmt.Sprintf("%v", ERROR), log.Ldate|log.Ltime|log.Lshortfile)
+	critlog := log.New(os.Stderr, fmt.Sprintf("%v", CRITICAL), log.Ldate|log.Ltime|log.Lshortfile)
+	debuglog := log.New(os.Stderr, fmt.Sprintf("%v", DEBUG), log.Ldate|log.Ltime|log.Lshortfile)
+	infolog := log.New(os.Stderr, fmt.Sprintf("%v", INFO), log.Ldate|log.Ltime|log.Lshortfile)
+
 	wg := &sync.WaitGroup{} // waitgroup is intended to track the number of active goroutines.
 	crit := make(ch, chBufSize)
 	err := make(ch, chBufSize)
@@ -204,9 +209,13 @@ func StartLogger(logger *log.Logger) *Mylogger {
 	shutdown := make(chan interface{}, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	l := Mylogger{
-		baseLogger: logger,
-		wg:         wg,
-		start:      time.Now(), // Set start time of the server.
+		wg:       wg,
+		start:    time.Now(), // Set start time of the server.
+		warnlog:  warnlog,
+		errlog:   errlog,
+		critlog:  critlog,
+		debuglog: debuglog,
+		infolog:  infolog,
 	}
 	l.chans = channels{
 		crit:     crit,
@@ -239,44 +248,29 @@ func mediateChannels(m *Mylogger) {
 	for {
 		select {
 		case e := <-m.chans.crit:
-			err := convertToError(e)
-			msg := errors.New(CRITICAL.prefix() + " " + err.Error())
-			m.genericshutdownSequence(msg)
+			m.critlog.Println(cioe(e).Error())
+			m.genericshutdownSequence(cioe(e))
 		case e := <-m.chans.err:
-			err := convertToError(e)
-			msg := errors.New(ERROR.prefix() + " " + err.Error())
-			m.baseLogger.Println(msg.Error())
+			m.errlog.Println(cioe(e).Error())
 		case e := <-m.chans.warn:
-			err := convertToError(e)
-			msg := errors.New(WARNING.prefix() + " " + err.Error())
-			m.baseLogger.Println(msg.Error())
+			m.warnlog.Println(cioe(e).Error())
 		case e := <-m.chans.info:
-			err := convertToError(e)
-			msg := errors.New(INFO.prefix() + " " + err.Error())
-			m.baseLogger.Printf(msg.Error())
+			m.infolog.Println(cioe(e).Error())
 		case e := <-m.chans.debug:
-			err := convertToError(e)
-			msg := errors.New(DEBUG.prefix() + " " + err.Error())
-			m.baseLogger.Printf(msg.Error())
+			m.debuglog.Println(cioe(e).Error())
 		case <-m.chans.shutdown:
 			m.genericshutdownSequence(nil)
 		case s := <-m.chans.sigs:
-			t := colorWrap(PURPLE, "INTSIGNAL")
-			err := convertToError(s)
-			msg := errors.New(t + " " + err.Error())
-			m.baseLogger.Println(msg.Error())
+			m.infolog.Println("Received Signal: ", s.String())
 			m.genericshutdownSequence(nil)
-		case s := <-m.chans.shutdown:
-			err := convertToError(s)
-			m.genericshutdownSequence(err)
 		case <-m.chans.quit:
 			return
 		}
 	}
 }
 
-// Ensure that the argument is an error.
-func convertToError(a any) error {
+// convert into error
+func cioe(a any) error {
 	switch t := a.(type) {
 	case error:
 		return t
