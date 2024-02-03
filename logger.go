@@ -25,31 +25,16 @@ const (
 )
 
 var (
-	crit, err, warn, info, debug, sigs          ch          // various channels used to receive logs.
-	critlog, errlog, warnlog, infolog, debuglog *log.Logger // various loggers used to log messages.
-	debugColor                                  = BLUE
-	critColor                                   = PURPLE
-	errColor                                    = RED
-	warnColor                                   = YELLOW
-	baseColor                                   = WHITE
+	crit, err, warn, info, debug, sigs ch // various channels used to receive logs.
+	debugColor                         = BLUE
+	critColor                          = PURPLE
+	errColor                           = RED
+	warnColor                          = YELLOW
+	baseColor                          = WHITE
 )
 
 func (e errorType) String() string {
-	switch e {
-	case DEBUG:
-		return colorWrap(e.Color(), "DEBUG")
-	case CRITICAL:
-		return colorWrap(e.Color(), "CRITICAL")
-	case ERROR:
-		return colorWrap(e.Color(), "ERROR")
-	case WARNING:
-		return colorWrap(e.Color(), "WARNING")
-	case INFO:
-		return colorWrap(e.Color(), "INFO")
-	case INTSIGNAL:
-		return colorWrap(e.Color(), "INTSIGNAL")
-	}
-	return colorWrap(e.Color(), "UNKNOWN")
+	return e.prefix()
 }
 
 func (e errorType) Color() Color {
@@ -264,6 +249,7 @@ func mediateChannels(m *Mylogger) {
 			m.infolog.Println("Received Signal: ", s.String())
 			m.genericshutdownSequence(nil)
 		case <-m.chans.quit:
+			m.warnlog.Println("Received Quit Signal, shutting down logger")
 			return
 		}
 	}
