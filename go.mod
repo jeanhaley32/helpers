@@ -1,3 +1,3 @@
-module github.com/jeanhaley32/logger
+module logger
 
 go 1.21.5

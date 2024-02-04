@@ -1,5 +1,4 @@
-// Enum definitons for color wrapping.
-package logger
+package main
 
 type Color int64
 

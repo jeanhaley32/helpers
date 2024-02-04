@@ -1,4 +1,4 @@
-package logger
+package main
 
 import (
 	"errors"
@@ -118,6 +118,7 @@ type Mylogger struct {
 
 // Close all log channels
 func (l *Mylogger) closeLogs() {
+	defer l.wg.Done()
 	close(l.chans.debug)
 	close(l.chans.crit)
 	close(l.chans.err)
@@ -125,9 +126,16 @@ func (l *Mylogger) closeLogs() {
 	close(l.chans.warn)
 }
 
-// generic shutdown sequence
-func (l Mylogger) genericshutdownSequence(e error) {
-
+// Drain all log channels.
+func (l *Mylogger) drainChannel() {
+	chList := []errorType{
+		CRITICAL,
+		ERROR,
+		WARNING,
+		INFO,
+		DEBUG,
+	}
+	defer l.wg.Done()
 	// define function used to drain channels
 	drain := func(e errorType) {
 		for m := range e.channel() {
@@ -145,28 +153,32 @@ func (l Mylogger) genericshutdownSequence(e error) {
 		}
 	}
 
+	for _, e := range chList {
+		drain(e)
+	}
+	l.infolog.Output(2, "All logs drained. Closing log channels")
+	l.closeLogs()
+}
+
+// generic shutdown sequence
+func (l Mylogger) genericshutdownSequence(e error) {
+
 	// Close shutdown channel first. This should be used to signal the end of the server.
 	close(l.chans.shutdown)
-
-	// drain and close all channels.
-	drain(CRITICAL)
-	drain(ERROR)
-	drain(WARNING)
-	drain(INFO)
-	drain(DEBUG)
-	// close all channels
-	l.closeLogs()
-	l.infolog.Println("All log channels drained and closed successfully")
-
-	// wait for wg to be cleared.
 	l.wg.Wait()
-	l.infolog.Println("All tracked Routines stopped successfully")
+	l.infolog.Println("All tracked Routines stopped")
+
 	l.infolog.Printf("Server ran for %s", time.Since(l.StartTime()))
 	if e != nil {
 		l.warnlog.Println("Server exited with error: ", e.Error())
 		os.Exit(1)
 	}
 	l.infolog.Printf("Shutting Down...")
+	// after all routines have stopped, drain the channels of logs.
+	l.AddToWaitGroup()
+	go l.drainChannel()
+	l.wg.Wait()
+	// exit with status 0
 	os.Exit(0)
 }
 
@@ -189,10 +201,10 @@ func StartLogger() *Mylogger {
 	warn := make(ch, chBufSize)
 	info := make(ch, chBufSize)
 	debug := make(ch, chBufSize)
-	quit := make(chan any)
+	quit := make(chan any, 1)
 	sigs := make(chan os.Signal, 1)
 	shutdown := make(chan interface{}, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	// signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	l := Mylogger{
 		wg:       wg,
 		start:    time.Now(), // Set start time of the server.
@@ -213,6 +225,7 @@ func StartLogger() *Mylogger {
 		quit:     quit,
 	}
 	go func() {
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 		mediateChannels(&l)
 	}()
 	return &l
