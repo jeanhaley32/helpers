@@ -1,24 +1,24 @@
 # Custom Logger for Go Applications
-A custom logger in golang with the following features. 
+A custom logger in Go with the following features. 
 
 ## Key Features:
 
-- <b>Level-based logging:</b> Logs messages with different severities (`critical`, `error`, `warning`, `info`, `debug`) to separate channels.
-- <b>Colored output:</b> Differentiates log levels with colors for better readability.
-- <b>Graceful shutdown:</b> Manages cleanup of resources and ensures remaining logs are written before exiting.
-- <b>Signal handling:</b> Responds to system signals (SIGINT, SIGTERM) for graceful shutdown.
-- <b>Asynchronous logging:</b> Uses channels to prevent blocking of main program execution.
-- <b>Server uptime tracking:</b> Records server start time for performance insights.
+- **Level-based logging:** Logs messages with different severities (`critical`, `error`, `warning`, `info`, `debug`) to separate channels.
+- **Colored output:** Differentiates log levels with colors for better readability.
+- **Graceful shutdown:** Manages cleanup of resources and ensures remaining logs are written before exiting.
+- **Signal handling:** Responds to system signals (SIGINT, SIGTERM) for graceful shutdown.
+- **Asynchronous logging:** Uses channels to prevent blocking of main program execution.
+- **Server uptime tracking:** Records server start time for performance insights.
 
-## Usage:
+## **Usage:**
 
-### Start the logger:
+### **Start the logger:**
 
 ```Go
  logger := StartLogger()
 ```
 
- ### Log messages:
+ ### **Log messages:**
 
 ```Go
 logger.Critical("Critical error occurred!")
@@ -28,12 +28,25 @@ logger.Info("Informational message.")
 logger.Debug("Debugging details.")
 ```
 
-### Initiate shutdown:
+### **Initiate shutdown:**
 ```Go
 logger.Shutdown()  // Graceful shutdown
 logger.Quit()      // Forced, non-graceful shutdown
 ```
 
+## **WaitGroup Handling**
+
+> **This package utilizes a `sync.WaitGroup` to manage concurrent goroutines and ensure proper completion before shutdown:**
+
+- **Tracking goroutines:** The `AddToWaitGroup()` function increments the WaitGroup counter, signaling the start of a new goroutine.
+- **Signaling completion:** The `Done()` function decrements the counter, indicating that a goroutine has finished.
+- **Waiting for completion:** The `genericshutdownSequence` function blocks until the WaitGroup counter reaches zero, ensuring all tracked goroutines have completed before proceeding with shutdown.
+
+**This mechanism guarantees that:**
+
+- Logs from concurrent goroutines are properly captured and written before exiting.
+- Resources used by goroutines are released appropriately.
+- The application exits in a clean and orderly manner, preventing potential data loss or resource leaks.
 
 
 ## Run Time Example
