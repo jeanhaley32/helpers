@@ -1,4 +1,4 @@
-package main
+package logger
 
 type Color int64
 

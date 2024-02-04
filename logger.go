@@ -1,4 +1,4 @@
-package main
+package logger
 
 import (
 	"errors"
@@ -34,10 +34,26 @@ var (
 	errColor                                           = RED
 	warnColor                                          = YELLOW
 	baseColor                                          = WHITE
+	timeFormat                                         = "2006-01-02 15:04:05"
 )
 
 func (e errorType) String() string {
-	return e.prefix()
+	timeNow := func() string {
+		return time.Now().Format(timeFormat)
+	}
+	switch e {
+	case DEBUG:
+		return fmt.Sprintf(timeNow() + ":" + colorWrap(e.Color(), "DEBUG:"))
+	case CRITICAL:
+		return fmt.Sprintf(timeNow() + ":" + colorWrap(e.Color(), "CRITICAL:"))
+	case ERROR:
+		return fmt.Sprintf(timeNow() + ":" + colorWrap(e.Color(), "ERROR:"))
+	case WARNING:
+		return fmt.Sprintf(timeNow() + ":" + colorWrap(e.Color(), "WARNING:"))
+	case INFO:
+		return fmt.Sprintf(timeNow() + ":" + colorWrap(e.Color(), "INFO:"))
+	}
+	return fmt.Sprintf(timeNow() + ":" + colorWrap(e.Color(), "INFO:"))
 }
 
 func (e errorType) Color() Color {
@@ -54,22 +70,6 @@ func (e errorType) Color() Color {
 		return baseColor
 	}
 	return baseColor
-}
-
-func (e errorType) prefix() string {
-	switch e {
-	case DEBUG:
-		return colorWrap(DEBUG.Color(), "DEBUG")
-	case CRITICAL:
-		return colorWrap(CRITICAL.Color(), "CRITICAL")
-	case ERROR:
-		return colorWrap(ERROR.Color(), "ERROR")
-	case WARNING:
-		return colorWrap(WARNING.Color(), "WARNING")
-	case INFO:
-		return colorWrap(INFO.Color(), "INFO")
-	}
-	return "UNKNOWN"
 }
 
 func (e errorType) initChan() ch {
@@ -100,6 +100,10 @@ func (e errorType) initChan() ch {
 		return info
 	}
 	return make(ch, chBufSize)
+}
+
+func (e errorType) initLog() *log.Logger {
+	return log.New(os.Stderr, fmt.Sprintf("%v", e), log.Lshortfile)
 }
 
 func (e errorType) channel() ch {
@@ -224,21 +228,17 @@ func (l Mylogger) genericshutdownSequence(e error) {
 // l := StartLogger(log.Default())
 // l.Debug("Debug message")
 // l.Error("Error message")...
-func StartLogger(verbose bool) *Mylogger {
-	if !verbose {
-		verbose = verboseDefault
-	}
-	warnlog := log.New(os.Stderr, fmt.Sprintf("%v", WARNING), log.Ldate|log.Ltime|log.Lshortfile)
-	errlog := log.New(os.Stderr, fmt.Sprintf("%v", ERROR), log.Ldate|log.Ltime|log.Lshortfile)
-	critlog := log.New(os.Stderr, fmt.Sprintf("%v", CRITICAL), log.Ldate|log.Ltime|log.Lshortfile)
-	debuglog := log.New(os.Stderr, fmt.Sprintf("%v", DEBUG), log.Ldate|log.Ltime|log.Lshortfile)
-	infolog := log.New(os.Stderr, fmt.Sprintf("%v", INFO), log.Ldate|log.Ltime|log.Lshortfile)
+func StartLogger(isVerbose ...bool) *Mylogger {
+	warnlog := WARNING.initLog()
+	errlog := ERROR.initLog()
+	critlog := CRITICAL.initLog()
+	debuglog := DEBUG.initLog()
+	infolog := INFO.initLog()
 
 	wg := &sync.WaitGroup{} // waitgroup is intended to track the number of active goroutines.
 	quit := make(chan any, 1)
 	sigs := make(chan os.Signal, 1)
 	shutdown := make(chan interface{}, 1)
-	// signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	l := Mylogger{
 		wg:       wg,
 		start:    time.Now(), // Set start time of the server.
@@ -247,6 +247,13 @@ func StartLogger(verbose bool) *Mylogger {
 		critlog:  critlog,
 		debuglog: debuglog,
 		infolog:  infolog,
+		verbose: func() bool {
+			if len(isVerbose) > 0 {
+				return isVerbose[0]
+			} else {
+				return verboseDefault
+			}
+		}(),
 	}
 	l.chans = channels{
 		crit:     CRITICAL.initChan(),
@@ -279,9 +286,6 @@ func (l *Mylogger) Done() {
 func mediateChannels(l *Mylogger) {
 	for {
 		select {
-		case e := <-l.chans.crit:
-			l.critlog.Println(cioe(e).Error())
-			l.genericshutdownSequence(cioe(e))
 		case e := <-l.chans.err:
 			l.errlog.Println(cioe(e).Error())
 		case e := <-l.chans.warn:
@@ -326,7 +330,9 @@ func (l Mylogger) StartTime() time.Time {
 
 // Log Critical Error and shutdown
 func (l *Mylogger) Critical(a any) {
-	l.chans.crit <- a
+	// Abort all operations and shutdown server.
+	err := cioe(a)
+	l.critlog.Fatal(err.Error())
 }
 
 // Log Error
