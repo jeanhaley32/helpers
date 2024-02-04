@@ -3,7 +3,8 @@ package main
 import "time"
 
 func main() {
-	l := StartLogger()
+
+	l := StartLogger(true)
 	l.Debug("This is a debug message")
 	l.Error("This is an error message")
 	l.Warning("This is a warning message")
