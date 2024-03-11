@@ -283,9 +283,11 @@ func mediateChannels(l *Mylogger) {
 		select {
 		case <-l.chans.done:
 			l.Done()
+			l.infolog.Println("Closing mediateChannels Routine")
 			return
 		case <-l.chans.quit:
 			l.warnlog.Println("Received Quit Signal, shutting down logger")
+			l.Done()
 			return
 		case e := <-l.chans.err:
 			l.errlog.Println(cioe(e).Error())
